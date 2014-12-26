@@ -20,18 +20,24 @@
 # Attributes for InfluxDB
 
 # Versions are mapped to checksums
-# By default, always installs 'latest'
-default[:influxdb][:version] = 'latest'
-default[:influxdb][:versions] = {
-  amd64: {
-    '0.8.5' => '58ae034557e6a2886530577ab368ed2153b4e0a41bcfa57d8b15a9d5006f14d0',
-    :latest => '58ae034557e6a2886530577ab368ed2153b4e0a41bcfa57d8b15a9d5006f14d0'
-  },
-  i686: {
-    '0.8.5' => 'b551d6d152c9af6e66a1eba3c07578a20678d0d3f3efa8852f19e2befd96a7fd',
-    :latest => 'b551d6d152c9af6e66a1eba3c07578a20678d0d3f3efa8852f19e2befd96a7fd'
-  }
-}
+default[:influxdb][:version] = '0.8.7'
+
+default[:influxdb][:package][:base_url] = 'http://s3.amazonaws.com/influxdb/'
+case node.platform_family
+  when 'debian'
+    arch = /x86_64/.match(node[:kernel][:machine]) ? 'amd64' : 'i686'
+    default[:influxdb][:package][:name] = "influxdb_#{default[:influxdb][:version]}_#{arch}.deb"
+    default[:influxdb][:checksum] = arch == 'amd64' ? '8faf1468b2f81d468dea34055671ab88831172c8905919021914a2a3e41707fa' : '7f89d168f4a821c9caf21a8edb1dd64a70bf74eeb4f9cce483cc754245d08074'
+  when 'rhel'
+    arch = /x86_64/.match(node[:kernel][:machine]) ? 'x86_64' : 'i686'
+    default[:influxdb][:package][:name] = "influxdb-#{default[:influxdb][:version]}-1.#{arch}.rpm"
+    default[:influxdb][:checksum] = arch == 'x86_64' ? '321b14c3cf7c94f56506f432847c85c2f6080cb5f25b35c83fb2aa14cb843007' : 'a0ff244d18418b2fee3294905096d34e981f2af147cd533c300a27153a94dd68'
+  else
+    Chef::Log.fatal "Not a supported platform family: #{node.platform_family}"
+    raise
+end
+
+default[:influxdb][:source] = "#{default[:influxdb][:package][:base_url]}#{default[:influxdb][:package][:name]}"
 
 # Default influxdb recipe action. Consider [:create, :start]
 default[:influxdb][:action] = [:create]
@@ -43,7 +49,7 @@ default[:influxdb][:client][:ruby][:version] = nil
 default[:influxdb][:handler][:version] = '0.1.4'
 
 # Parameters to configure InfluxDB
-# Based on https://github.com/influxdb/influxdb/blob/v0.8.5/config.sample.toml
+# Based on https://github.com/influxdb/influxdb/blob/v0.8.7/config.sample.toml
 default[:influxdb][:config] = {
   'bind-address' => '0.0.0.0',
   'reporting-disabled' => false,
@@ -62,9 +68,17 @@ default[:influxdb][:config] = {
     graphite: {
       enabled: false
     },
+    collectd: {
+      enabled: false
+    },
     udp: {
       enabled: false
-    }
+    },
+    udp_servers: [
+      {
+          enabled: false
+      }
+    ]
   },
   raft: {
     port: 8090,

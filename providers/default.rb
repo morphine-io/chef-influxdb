@@ -43,14 +43,15 @@ end
 private
 
 def install_influxdb
-  path = ::File.join(Chef::Config[:file_cache_path], 'influxdb.deb')
+  pkgType = /\.deb$/.match(@source) ? "deb" : "rpm"
+  path = ::File.join(Chef::Config[:file_cache_path], "influxdb.#{pkgType}")
   remote = Chef::Resource::RemoteFile.new(path, @run_context)
   remote.source(@source) if @source
   remote.checksum(@checksum) if @checksum
   remote.run_action(:create)
 
   pkg = Chef::Resource::Package.new(path, @run_context)
-  pkg.provider(Chef::Provider::Package::Dpkg)
+  pkg.provider(pkgType == 'deb' ? Chef::Provider::Package::Dpkg : Chef::Provider::Package::Rpm)
   pkg.run_action(:install)
 end
 
